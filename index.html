@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VERTEX COVER VISUALIZER</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+        :root {
+            --bg-dark: #0a0d1a;
+            --bg-panel: #0f1429;
+            --bg-secondary: #151d35;
+            --text-primary: #e8eef7;
+            --text-secondary: #a8b5d1;
+            --text-muted: #6b7a99;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #0099ff;
+            --accent-green: #00ff88;
+            --accent-red: #ff4466;
+            --border-color: #1e2849;
+            --border-highlight: #00d4ff;
+        }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0c0f22 100%);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .header {
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-title { font-weight: 700; font-size: 14px; letter-spacing: 1px; }
+        .header-title::before { content: '◎'; color: var(--accent-red); margin-right: 0.5rem; }
+        .info-badge {
+            padding: 0.4rem 0.8rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 3px;
+            font-size: 12px;
+            color: var(--accent-cyan);
+        }
+        .status-indicator { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .status-badge {
+            padding: 0.4rem 1rem;
+            background: rgba(0,255,136,0.1);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        .nav-tabs {
+            display: flex;
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 1.5rem;
+            overflow-x: auto;
+        }
+        .nav-tab {
+            padding: 0.75rem 1.25rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+        .nav-tab:hover { color: var(--accent-cyan); border-bottom-color: var(--accent-cyan); }
+        .nav-tab.active { color: var(--accent-cyan); border-bottom-color: var(--accent-cyan); }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: calc(100vh - 110px);
+        }
+        .sidebar {
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .content { background: var(--bg-dark); overflow-y: auto; }
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 1rem;
+            margin: 0.75rem;
+        }
+        .panel:hover { border-color: var(--border-highlight); box-shadow: 0 0 10px rgba(0,212,255,0.1); }
+        .panel-title {
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        .panel-title::before { content: '■ '; color: var(--accent-cyan); }
+        .form-group { margin-bottom: 0.9rem; }
+        .form-label {
+            display: block;
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.6rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            border-radius: 3px;
+        }
+        .form-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 8px rgba(0,212,255,0.2); }
+        textarea.form-input { resize: vertical; min-height: 100px; }
+        .btn {
+            padding: 0.6rem 0.9rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        .btn:hover:not(:disabled) { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .btn.primary { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .btn.danger { border-color: var(--accent-red); color: var(--accent-red); }
+        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem; }
+        .button-group.full { grid-template-columns: 1fr; }
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem; }
+        .preset-btn {
+            padding: 0.5rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .preset-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .stat-item {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            padding: 0.6rem;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 11px;
+        }
+        .stat-label { color: var(--text-secondary); }
+        .stat-value { color: var(--accent-cyan); font-weight: 700; }
+        .stat-value.green { color: var(--accent-green); }
+        .tab-content { display: none; padding: 1.5rem; height: 100%; overflow-y: auto; }
+        .tab-content.active { display: block; }
+        .section-wrapper { max-width: 1400px; margin: 0 auto; }
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
+        .algo-column {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .column-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        .column-title::before { content: '⊟ '; color: var(--accent-blue); }
+        /* FIX: graph-canvas uses fixed height and overflow:hidden so it never grows */
+        .graph-canvas {
+            width: 100%;
+            height: 300px;
+            overflow: hidden;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+        }
+        /* FIX: SVG fills the fixed canvas without driving layout */
+        .graph-canvas svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .stat-row {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            padding: 0.6rem;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.4rem;
+            font-size: 11px;
+        }
+        .stat-row-label { color: var(--text-secondary); }
+        .stat-row-value { color: var(--accent-cyan); font-weight: 700; }
+        .info-section {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-left: 2px solid var(--accent-blue);
+            border-radius: 3px;
+            padding: 0.9rem;
+            margin-top: 1rem;
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .pseudocode {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-left: 2px solid var(--accent-blue);
+            border-radius: 3px;
+            padding: 0.9rem;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            margin: 0.75rem 0;
+            line-height: 1.6;
+        }
+        .code-line { display: block; padding: 0.2rem 0; transition: all 0.2s; }
+        .code-line.highlighted {
+            background: rgba(0,212,255,0.2);
+            color: var(--accent-cyan);
+            padding: 0.2rem 0.5rem;
+            margin: 0 -0.5rem;
+        }
+        .step-detail {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            font-size: 11px;
+        }
+        .step-detail-title { color: var(--accent-cyan); font-weight: 700; margin-bottom: 0.5rem; text-transform: uppercase; }
+        .step-detail-content { color: var(--text-secondary); line-height: 1.6; }
+        .step-detail-content strong { color: var(--accent-green); }
+        .reduction-diagram {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 1rem;
+            margin: 1rem 0;
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        .reduction-box { flex: 1; text-align: center; }
+        .reduction-box-title { color: var(--accent-cyan); font-weight: 700; margin-bottom: 0.5rem; }
+        .reduction-arrow { font-size: 24px; color: var(--accent-green); }
+        .reduction-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 0.75rem;
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .chart-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .chart-controls {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .slider-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; min-width: 50px; }
+        .slider-container { flex: 1; display: flex; gap: 1rem; align-items: center; }
+        .slider {
+            flex: 1; height: 6px; border-radius: 3px;
+            background: var(--border-color); outline: none; -webkit-appearance: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+            background: var(--accent-cyan); cursor: pointer; box-shadow: 0 0 8px rgba(0,212,255,0.5);
+        }
+        .slider::-moz-range-thumb {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--accent-cyan); cursor: pointer; border: none;
+        }
+        .slider-value-display { min-width: 60px; text-align: center; color: var(--accent-cyan); font-weight: 700; font-size: 13px; }
+        .chart-svg { width: 100%; height: 100%; min-height: 350px; }
+        .chart-legend { display: flex; gap: 2rem; padding: 1rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 3px; margin-top: 1rem; font-size: 11px; }
+        .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+        .legend-line { width: 30px; height: 3px; border-radius: 2px; }
+        .legend-line.brute { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); }
+        .legend-line.greedy { background: linear-gradient(90deg, var(--accent-green), var(--accent-blue)); }
+        .concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
+        .concept-box { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 3px; padding: 1.5rem; }
+        .concept-title { font-size: 13px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; }
+        .concept-content { font-size: 11px; color: var(--text-secondary); line-height: 1.7; }
+        .concept-content p { margin-bottom: 0.75rem; }
+        .concept-content strong { color: var(--accent-cyan); }
+        .analysis-section { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 3px; padding: 1.5rem; margin-bottom: 2rem; }
+        .analysis-title { font-size: 12px; font-weight: 700; color: var(--accent-green); margin-bottom: 1rem; text-transform: uppercase; }
+        .analysis-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+        .analysis-item { text-align: center; }
+        .analysis-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; }
+        .analysis-value { font-size: 18px; color: var(--accent-green); font-weight: 700; }
+        .fix-note {
+            background: rgba(0,255,136,0.07);
+            border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 3px;
+            padding: 0.5rem 0.75rem;
+            font-size: 10px;
+            color: var(--accent-green);
+            margin-bottom: 0.5rem;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-panel); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-highlight); }
+        @media (max-width: 1200px) { .two-column, .concept-grid, .analysis-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div style="display:flex; gap:2rem; align-items:center;">
+        <div class="header-title">VERTEX COVER VISUALIZER</div>
+        <div class="info-badge">NP-Complete</div>
+        <div class="info-badge">20230003255 · BCS309 Algorithms</div>
+    </div>
+    <div style="display:flex; gap:1rem; align-items:center;">
+        <span class="status-indicator"></span>
+        <span class="status-badge">READY</span>
+    </div>
+</div>
+
+<div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('overview', this)">⊞ CONCEPT & PROOF</button>
+    <button class="nav-tab" onclick="switchTab('build', this)">⊞ BUILD & COMPARE</button>
+    <button class="nav-tab" onclick="switchTab('performance', this)">⊞ GROWTH ANALYSIS</button>
+</div>
+
+<div class="main-grid">
+    <div class="sidebar">
+        <div class="panel">
+            <div class="panel-title">Graph Input</div>
+            <div class="form-group">
+                <label class="form-label">Target Size (k)</label>
+                <input type="number" class="form-input" id="targetK" value="2" min="0">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Edges (u v, one per line)</label>
+                <textarea class="form-input" id="graphInput">0 1
+1 2
+0 2</textarea>
+            </div>
+            <button class="btn primary" style="width:100%; margin-bottom:0.5rem;" onclick="buildGraph()">LOAD GRAPH</button>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Presets</div>
+            <div class="preset-grid">
+                <button class="preset-btn" onclick="loadPreset('triangle')">Triangle</button>
+                <button class="preset-btn" onclick="loadPreset('square')">Square</button>
+                <button class="preset-btn" onclick="loadPreset('path')">Path (sparse)</button>
+                <button class="preset-btn" onclick="loadPreset('cycle')">Cycle</button>
+                <button class="preset-btn" onclick="loadPreset('bipartite')">Bipartite</button>
+                <button class="preset-btn" onclick="loadPreset('complete')">Complete (dense)</button>
+                <button class="preset-btn" onclick="loadPreset('matching')" style="grid-column:1/-1; border-color:#ff4466; color:#ff4466;">Matching (worst case)</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Algorithm Controls</div>
+            <div class="form-group">
+                <label class="form-label">Playback Speed</label>
+                <div class="slider-container" style="margin-bottom:1rem;">
+                    <input type="range" class="slider" id="speedSlider" min="0.25" max="2" step="0.25" value="1" oninput="updateSpeed()">
+                    <span id="speedValue" style="font-size:11px; color:var(--accent-cyan); min-width:40px;">1.00×</span>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn primary" onclick="runBothAlgorithms()">RUN</button>
+                <button class="btn" onclick="pauseBothAlgorithms()">PAUSE</button>
+            </div>
+            <div class="button-group">
+                <button class="btn" onclick="stepBothAlgorithms()">STEP</button>
+                <button class="btn danger" onclick="resetBoth()">RESET</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Graph Stats</div>
+            <div class="stat-item"><span class="stat-label">Vertices (n)</span><span class="stat-value" id="statVertices">0</span></div>
+            <div class="stat-item"><span class="stat-label">Edges (m)</span><span class="stat-value" id="statEdges">0</span></div>
+            <div class="stat-item"><span class="stat-label">Target (k)</span><span class="stat-value" id="statK">0</span></div>
+            <div class="stat-item"><span class="stat-label">Subsets to check</span><span class="stat-value" id="statSubsets">—</span></div>
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- CONCEPT & PROOF TAB -->
+        <div id="overview" class="tab-content active">
+            <div class="section-wrapper">
+                <div style="margin-bottom:2rem;">
+                    <div class="section-title">⊞ Problem Definition & Applications</div>
+                    <div class="concept-grid">
+                        <div class="concept-box">
+                            <div class="concept-title">What is Vertex Cover?</div>
+                            <div class="concept-content">
+                                <p><strong>Input:</strong> Undirected graph G = (V, E) and integer k (0 ≤ k ≤ |V|)</p>
+                                <p><strong>Question:</strong> Does there exist a subset C ⊆ V with |C| ≤ k such that every edge in E has at least one endpoint in C?</p>
+                                <p><strong>Example:</strong> Triangle (3 vertices, 3 edges) — YES for k=2 with C={a,b}; NO for k=1 (any single vertex leaves one edge uncovered).</p>
+                                <p style="margin-top:1rem;"><strong>Real-World Uses:</strong></p>
+                                <p>• Network monitoring: place monitors so every link is watched</p>
+                                <p>• Bioinformatics: identify critical genes covering all interactions</p>
+                                <p>• VLSI: circuit fault detection</p>
+                            </div>
+                        </div>
+                        <div class="concept-box">
+                            <div class="concept-title">Why is it Hard?</div>
+                            <div class="concept-content">
+                                <p><strong>NP-Complete:</strong> Checking a proposed solution takes O(m) time, but finding the minimum cover requires (in the worst case) exponential search over all subsets.</p>
+                                <p><strong>Implication:</strong> No polynomial-time exact algorithm is known (unless P = NP).</p>
+                                <p style="margin-top:1rem;"><strong>Response:</strong> Use a 2-approximation — greedy finds a cover guaranteed to be at most twice the optimal in O(m²) time.</p>
+                                <p style="margin-top:0.75rem; color:var(--accent-green); font-weight:700;">NP-hardness applies to general graphs only. Bipartite graphs are solvable in polynomial time via König's theorem: minimum vertex cover = maximum matching.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:2rem;">
+                    <div class="section-title">⊞ NP-Completeness Proof (3-SAT Reduction)</div>
+
+                    <div class="concept-box" style="margin-bottom:1rem;">
+                        <div class="concept-title">Step 1: Vertex Cover ∈ NP</div>
+                        <div class="concept-content">
+                            <p><strong>Certificate:</strong> A proposed cover C ⊆ V (stored as a boolean array, size O(n))</p>
+                            <p><strong>Verifier (O(m)):</strong></p>
+                            <p>&nbsp;&nbsp;1. Check |C| ≤ k → O(1)</p>
+                            <p>&nbsp;&nbsp;2. For each edge {u,v} ∈ E: check u ∈ C or v ∈ C → O(1) per edge, O(m) total</p>
+                            <p style="margin-top:0.5rem; color:var(--accent-green); font-weight:700;">✓ Polynomial verification → Vertex Cover ∈ NP</p>
+                        </div>
+                    </div>
+
+                    <div class="concept-box" style="margin-bottom:1rem;">
+                        <div class="concept-title">Step 2: NP-Hard via 3-SAT Reduction</div>
+                        <div class="concept-content">
+                            <p><strong>Goal:</strong> Given any 3-SAT formula φ with n variables and m clauses, construct a graph G and integer k such that φ is satisfiable ⟺ G has a vertex cover of size k.</p>
+                            <p style="margin-top:0.75rem;"><strong>Variable gadget:</strong> For each variable xᵢ, create an edge between vertex xᵢ and vertex ¬xᵢ. Any cover must pick exactly one — encoding the truth value.</p>
+                            <p style="margin-top:0.5rem;"><strong>Clause gadget:</strong> For each clause (ℓ₁ ∨ ℓ₂ ∨ ℓ₃), create a triangle on three vertices. Connect each triangle vertex to its matching variable vertex. Any cover needs ≥ 2 triangle vertices.</p>
+                            <p style="margin-top:0.5rem;"><strong>Gadget counts:</strong> 2n + 3m vertices · n + 6m edges · k = n + 2m</p>
+                            <p style="margin-top:0.75rem;"><strong>Forward (→):</strong> Satisfying assignment A → pick the true literal from each variable gadget (n vertices) + the 2 non-satisfying clause vertices from each triangle (2m vertices) = n + 2m = k. ✓</p>
+                            <p style="margin-top:0.5rem;"><strong>Backward (←):</strong> Cover C of size k = n + 2m forces exactly 1 from each variable gadget (defines assignment A) and exactly 2 from each clause triangle (the excluded vertex ℓ is outside C; its connection edge forces its variable vertex into C; that variable vertex is in C iff the literal is true → every clause satisfied). ✓</p>
+                            <p style="margin-top:0.5rem;"><strong>Why exactly 2 per triangle?</strong> Not 1: one vertex covers only 2 of 3 triangle edges — the third is uncovered. Not 3: budget k = n + 2m is exact — taking 3 from any clause exceeds it.</p>
+                            <p style="margin-top:0.75rem;"><strong>Reduction time:</strong> O(n + m) — linear in input size. ✓</p>
+                        </div>
+                    </div>
+
+                    <div class="reduction-diagram">
+                        <div class="reduction-box">
+                            <div class="reduction-box-title">3-SAT Formula φ</div>
+                            <div class="reduction-content" style="white-space:pre-wrap;">(x₁ ∨ x₂ ∨ ¬x₃)
+(¬x₁ ∨ x₃ ∨ x₂)
+...
+n variables, m clauses</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div class="reduction-arrow">→</div>
+                            <div style="font-size:10px; color:var(--text-secondary);">O(n+m)<br>Reduction</div>
+                        </div>
+                        <div class="reduction-box">
+                            <div class="reduction-box-title">Vertex Cover Instance</div>
+                            <div class="reduction-content" style="white-space:pre-wrap;">n variable edges
+m clause triangles
+Literal connections
+k = n + 2m</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div class="reduction-arrow">⟺</div>
+                            <div style="font-size:10px; color:var(--text-secondary);">Equivalent<br>Solutions</div>
+                        </div>
+                        <div class="reduction-box">
+                            <div class="reduction-box-title">Equivalence</div>
+                            <div class="reduction-content">✓ φ satisfiable
+  ⟺ VC of size k exists
+✓ Reduction O(n+m)
+✓ Both directions proved</div>
+                        </div>
+                    </div>
+
+                    <div class="concept-box" style="margin-top:1rem;">
+                        <div class="concept-title">Conclusion</div>
+                        <div class="concept-content">
+                            <p>1. ✓ Vertex Cover ∈ NP — verifiable in O(m)</p>
+                            <p>2. ✓ NP-Hard — 3-SAT reduces to it in O(n+m)</p>
+                            <p style="margin-top:0.75rem; color:var(--accent-green); font-weight:700;">∴ Vertex Cover is NP-Complete</p>
+                            <p style="font-size:10px; color:var(--text-muted); margin-top:0.5rem;">No polynomial-time exact algorithm is known for general graphs (unless P = NP). This directly motivates the 2-approximation algorithm.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BUILD & COMPARE TAB -->
+        <div id="build" class="tab-content">
+            <div class="section-wrapper">
+                <div class="section-title">Algorithm Comparison: Exact vs 2-Approximation</div>
+
+                <div class="two-column">
+                    <!-- BRUTE FORCE -->
+                    <div class="algo-column">
+                        <div class="column-title">Brute-Force — Exact (finds minimum cover)</div>
+                        <div class="fix-note">✓ Iterates subsets smallest-first (size 0 → k) — guaranteed minimum cover</div>
+                        <!-- FIX: graph canvas uses fixed pixel dimensions via viewBox; SVG uses preserveAspectRatio -->
+                        <div class="graph-canvas" id="graphVizBrute">
+                            <span style="color:var(--text-muted); font-size:11px;">Load a graph to begin</span>
+                        </div>
+
+                        <div style="margin-top:1rem;">
+                            <div class="stat-row"><span class="stat-row-label">Step</span><span class="stat-row-value" id="compBruteStep">0</span></div>
+                            <div class="stat-row"><span class="stat-row-label">Subsets tested</span><span class="stat-row-value" id="compBruteOps">0</span></div>
+                            <div class="stat-row"><span class="stat-row-label">Cover size (optimal)</span><span class="stat-row-value" id="compBruteCoverSize">—</span></div>
+                            <div class="stat-row"><span class="stat-row-label">Time (ms)</span><span class="stat-row-value" id="compBruteTimeVal">0</span></div>
+                            <div class="stat-row"><span class="stat-row-label">Status</span><span class="stat-row-value" id="compBruteStatus">Ready</span></div>
+                        </div>
+
+                        <div class="pseudocode" style="margin-top:0.75rem;">
+                            <span class="code-line" id="bfLine0"><strong>BruteForceVC(G, k):</strong></span>
+                            <span class="code-line" id="bfLine1">  // Edge cases — handled instantly</span>
+                            <span class="code-line" id="bfLine2">  if k=0: return (|E|=0 ? YES : NO)</span>
+                            <span class="code-line" id="bfLine3">  if k≥n: return YES (full V covers all)</span>
+                            <span class="code-line" id="bfLine4">  if |E|=0: return YES</span>
+                            <span class="code-line" id="bfLine5">  // Main loop — size-ordered</span>
+                            <span class="code-line" id="bfLine6">  for size = 0 to k:</span>
+                            <span class="code-line" id="bfLine7">    for each S ⊆ V with |S| = size:</span>
+                            <span class="code-line" id="bfLine8">      if every edge has ≥1 endpoint in S:</span>
+                            <span class="code-line" id="bfLine9">        return S  // minimum cover found</span>
+                            <span class="code-line" id="bfLine10">  return NO</span>
+                        </div>
+
+                        <div class="step-detail">
+                            <div class="step-detail-title">Current Step:</div>
+                            <div class="step-detail-content" id="compBruteDetail">Load a graph and press RUN or STEP to begin.</div>
+                        </div>
+                    </div>
+
+                    <!-- GREEDY -->
+                    <div class="algo-column">
+                        <div class="column-title">Greedy 2-Approximation — ≤ 2× optimal</div>
+                        <div class="fix-note">✓ Correctly removes all edges incident to chosen vertices (AND logic)</div>
+                        <div class="graph-canvas" id="graphVizGreedy">
+                            <span style="color:var(--text-muted); font-size:11px;">Load a graph to begin</span>
+                        </div>
+
+                        <div style="margin-top:1rem;">
+                            <div class="stat-row"><span class="stat-row-label">Step</span><span class="stat-row-value" id="compGreedyStep">0</span></div>
+                            <div class="stat-row"><span class="stat-row-label">Edges picked</span><span class="stat-row-value" id="compGreedyOps">0</span></div>
+                            <div class="stat-row"><span class="stat-row-label">Cover size</span><span class="stat-row-value" id="compGreedyCoverSize">—</span></div>
+                            <div class="stat-row"><span class="stat-row-label">Time (ms)</span><span class="stat-row-value" id="compGreedyTimeVal">0</span></div>
+                            <div class="stat-row"><span class="stat-row-label">Status</span><span class="stat-row-value" id="compGreedyStatus">Ready</span></div>
+                        </div>
+
+                        <div class="pseudocode" style="margin-top:0.75rem;">
+                            <span class="code-line" id="grLine0"><strong>GreedyVC(G):</strong></span>
+                            <span class="code-line" id="grLine1">  C ← ∅;  E′ ← E</span>
+                            <span class="code-line" id="grLine2">  while E′ ≠ ∅:</span>
+                            <span class="code-line" id="grLine3">    pick any edge {u,v} ∈ E′</span>
+                            <span class="code-line" id="grLine4">    C ← C ∪ {u, v}</span>
+                            <span class="code-line" id="grLine5">    E′ ← E′ \ {e : u∈e OR v∈e}</span>
+                            <span class="code-line" id="grLine6">  return C  // |C| ≤ 2·|C*|</span>
+                        </div>
+
+                        <div class="step-detail">
+                            <div class="step-detail-title">Current Step:</div>
+                            <div class="step-detail-content" id="compGreedyDetail">Load a graph and press RUN or STEP to begin.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analysis-section" id="analysisSection" style="display:none;">
+                    <div class="analysis-title">✓ Comparison Analysis</div>
+                    <div class="analysis-grid">
+                        <div class="analysis-item">
+                            <div class="analysis-label">Approximation Ratio (greedy ÷ optimal)</div>
+                            <div class="analysis-value" id="compRatio">—</div>
+                        </div>
+                        <div class="analysis-item">
+                            <div class="analysis-label">Speed Improvement (brute ÷ greedy ms)</div>
+                            <div class="analysis-value" id="compSpeedup">—</div>
+                        </div>
+                        <div class="analysis-item">
+                            <div class="analysis-label">Cover size difference</div>
+                            <div class="analysis-value" id="compInsight">—</div>
+                        </div>
+                    </div>
+                    <div id="ratioComment" style="margin-top:1rem; font-size:11px; color:var(--text-secondary); line-height:1.7;"></div>
+                </div>
+
+                <div class="concept-grid">
+                    <div class="concept-box">
+                        <div class="concept-title">⊞ Brute-Force Strategy</div>
+                        <div class="concept-content">
+                            <p><strong>Approach:</strong> Try all subsets in size order (0 → k). Stop at first valid — guaranteed minimum.</p>
+                            <p><strong>Quality:</strong> Exact optimal (|C*|)</p>
+                            <p><strong>Time:</strong> O(C(n,k) · m) ⊆ O(2ⁿ · m)</p>
+                            <p><strong>Space:</strong> O(n)</p>
+                            <p style="margin-top:0.75rem; color:var(--accent-red);">⚠ Exponential — impractical for n > 20</p>
+                        </div>
+                    </div>
+                    <div class="concept-box">
+                        <div class="concept-title">⊞ Greedy 2-Approximation Strategy</div>
+                        <div class="concept-content">
+                            <p><strong>Approach:</strong> Pick any uncovered edge, add BOTH endpoints, remove all incident edges. Repeat.</p>
+                            <p><strong>Quality:</strong> |C| ≤ 2·|C*| — proved via matching lower bound</p>
+                            <p><strong>Time:</strong> O(m²) naive implementation</p>
+                            <p><strong>Space:</strong> O(n + m)</p>
+                            <p style="margin-top:0.75rem; color:var(--accent-green);">✓ Polynomial — practical for large graphs</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GROWTH ANALYSIS TAB -->
+        <div id="performance" class="tab-content">
+            <div class="section-wrapper">
+                <div class="section-title">Growth Curve Analysis</div>
+
+                <div style="background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.3); border-radius:3px; padding:0.75rem 1rem; margin-bottom:1.5rem; font-size:11px; color:#ffaa00; line-height:1.6;">
+                    ⚠ <strong>Theoretical model:</strong> This chart plots the mathematical growth functions O(2ⁿ·m) and O(m²) — it does not show measured wall-clock runtimes. It visualises how the two algorithms scale as n increases, illustrating why exponential growth becomes infeasible even for moderate n.
+                </div>
+
+                <div class="chart-container">
+                    <div style="margin-bottom:1rem;">
+                        <button class="btn primary" style="margin-right:0.5rem;" onclick="initLineChart('complete')">Complete Graph</button>
+                        <button class="btn" style="margin-right:0.5rem;" onclick="initLineChart('sparse')">Sparse Graph</button>
+                        <button class="btn" onclick="initLineChart('random')">Random Graph</button>
+                    </div>
+
+                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:1rem; line-height:1.6;">
+                        Select a graph density above, then drag the slider to see how theoretical runtime scales with n.
+                    </div>
+
+                    <div class="chart-controls">
+                        <span class="slider-label">n = vertices:</span>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="nSlider" min="3" max="25" value="10" oninput="updateLineChart()">
+                            <span class="slider-value-display" id="nDisplay">10</span>
+                        </div>
+                    </div>
+
+                    <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:3px; padding:1.25rem; margin-bottom:1rem; display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:1.5rem;">
+                        <div style="text-align:center;">
+                            <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:0.5rem; font-weight:600;">Vertices (n)</div>
+                            <div style="font-size:20px; color:var(--accent-cyan); font-weight:700;" id="legendN">10</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:0.5rem; font-weight:600;">Brute-Force (model)</div>
+                            <div style="font-size:16px; color:var(--accent-cyan); font-weight:700;" id="legendBrute">—</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:0.5rem; font-weight:600;">Greedy (model)</div>
+                            <div style="font-size:16px; color:var(--accent-green); font-weight:700;" id="legendGreedy">—</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:0.5rem; font-weight:600;">Ratio (model)</div>
+                            <div style="font-size:16px; color:var(--accent-green); font-weight:700;" id="legendRatio">—</div>
+                        </div>
+                    </div>
+
+                    <svg class="chart-svg" id="lineChart" viewBox="0 0 900 350" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="bruteGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#0099ff;stop-opacity:1"/>
+                            </linearGradient>
+                            <linearGradient id="greedyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#0099ff;stop-opacity:1"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="900" height="350" fill="#0a0d1a" opacity="0.5"/>
+                        <g id="gridLines"></g>
+                        <g id="axes"></g>
+                        <g id="lines"></g>
+                        <g id="tooltip"></g>
+                    </svg>
+
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <div class="legend-line brute"></div>
+                            <span><strong style="color:var(--accent-cyan);">Brute-Force</strong> — O(2ⁿ·m) theoretical model</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-line greedy"></div>
+                            <span><strong style="color:var(--accent-green);">Greedy</strong> — O(m²) theoretical model</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-grid">
+                    <div class="concept-box">
+                        <div class="concept-title">⊞ What the Chart Shows</div>
+                        <div class="concept-content">
+                            <p><strong style="color:var(--accent-cyan);">Blue curve (Brute-Force):</strong> Grows exponentially with n — models O(2ⁿ·m).</p>
+                            <p>At n=15 the model value is already orders of magnitude larger than greedy. At n=25 the gap is so vast that brute force is effectively infeasible in practice.</p>
+                            <p style="margin-top:0.75rem;"><strong style="color:var(--accent-green);">Green curve (Greedy):</strong> Grows polynomially (m²) — stays near the x-axis across the entire range.</p>
+                            <p style="margin-top:0.75rem; color:var(--accent-red); font-weight:700;">This is why we need approximation for NP-complete problems.</p>
+                        </div>
+                    </div>
+                    <div class="concept-box">
+                        <div class="concept-title">⊞ Complexity Summary</div>
+                        <div class="concept-content">
+                            <p><strong style="color:var(--accent-cyan);">Brute-Force:</strong></p>
+                            <p style="font-size:10px;">Iterate subsets by size (0→k), check all m edges per subset.</p>
+                            <p style="font-size:10px;">Worst case: O(C(n,k)·m) ⊆ O(2ⁿ·m). Space: O(n).</p>
+                            <p style="margin-top:0.75rem;"><strong style="color:var(--accent-green);">Greedy 2-Approximation:</strong></p>
+                            <p style="font-size:10px;">At most m iterations (one edge picked per step). Each iteration scans remaining edges: O(m) per step.</p>
+                            <p style="font-size:10px;">Total: O(m²). Space: O(n+m).</p>
+                            <p style="margin-top:0.75rem; color:var(--accent-green); font-weight:700;">Greedy: polynomial. Brute force: exponential. The chart makes this concrete.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let currentGraph = { vertices: [], edges: [], targetK: 2 };
+let states = {
+    brute:  { running: false, step: 0, cover: [], steps: [], startTime: 0, timer: null },
+    greedy: { running: false, step: 0, cover: [], steps: [], startTime: 0, timer: null }
+};
+let currentChartType = 'complete';
+
+// Fixed canvas dimensions used by drawGraph — prevents size growth
+const GRAPH_W = 420;
+const GRAPH_H = 300;
+
+// ═══════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════
+function switchTab(tabName, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    if (btn) btn.classList.add('active');
+}
+
+// ═══════════════════════════════════════
+// PRESETS
+// ═══════════════════════════════════════
+function loadPreset(preset) {
+    const presets = {
+        triangle:  { edges: [[0,1],[1,2],[0,2]], k: 2 },
+        square:    { edges: [[0,1],[1,2],[2,3],[3,0]], k: 2 },
+        path:      { edges: [[0,1],[1,2],[2,3],[3,4]], k: 2 },
+        cycle:     { edges: [[0,1],[1,2],[2,3],[3,4],[4,0]], k: 3 },
+        bipartite: { edges: [[0,2],[0,3],[1,2],[1,3],[1,4]], k: 2 },
+        complete:  { edges: [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]], k: 3 },
+        matching:  { edges: [[0,1],[2,3],[4,5]], k: 3 }
+    };
+    const p = presets[preset];
+    document.getElementById('graphInput').value = p.edges.map(e => e.join(' ')).join('\n');
+    document.getElementById('targetK').value = p.k;
+    buildGraph();
+}
+
+// ═══════════════════════════════════════
+// BUILD GRAPH
+// ═══════════════════════════════════════
+function buildGraph() {
+    const input = document.getElementById('graphInput').value.trim();
+    const k = parseInt(document.getElementById('targetK').value);
+    const vertexSet = new Set();
+    const edges = [];
+
+    input.split('\n').forEach(line => {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            const u = parseInt(parts[0]), v = parseInt(parts[1]);
+            if (!isNaN(u) && !isNaN(v) && u !== v) {
+                vertexSet.add(u); vertexSet.add(v);
+                if (!edges.some(([a,b]) => (a===u&&b===v)||(a===v&&b===u))) {
+                    edges.push([u, v]);
+                }
+            }
+        }
+    });
+
+    currentGraph = {
+        vertices: Array.from(vertexSet).sort((a,b) => a-b),
+        edges,
+        targetK: isNaN(k) ? 0 : k
+    };
+
+    const n = currentGraph.vertices.length;
+    const m = currentGraph.edges.length;
+
+    document.getElementById('statVertices').textContent = n;
+    document.getElementById('statEdges').textContent = m;
+    document.getElementById('statK').textContent = currentGraph.targetK;
+
+    if (n <= 25) {
+        let total = 0;
+        for (let s = 0; s <= Math.min(currentGraph.targetK, n); s++) total += nCr(n, s);
+        document.getElementById('statSubsets').textContent = total.toLocaleString();
+    } else {
+        document.getElementById('statSubsets').textContent = '>2^25';
+    }
+
+    resetBoth();
+    drawGraph('graphVizBrute', []);
+    drawGraph('graphVizGreedy', []);
+}
+
+function nCr(n, r) {
+    if (r > n) return 0;
+    if (r === 0 || r === n) return 1;
+    r = Math.min(r, n - r);
+    let result = 1;
+    for (let i = 0; i < r; i++) result = result * (n - i) / (i + 1);
+    return Math.round(result);
+}
+
+// ═══════════════════════════════════════
+// DRAW GRAPH
+// FIX: uses fixed GRAPH_W × GRAPH_H constants instead of
+//      reading offsetWidth/offsetHeight, which caused the
+//      container to grow unboundedly on every redraw.
+//      The SVG uses viewBox + preserveAspectRatio so it
+//      scales to the CSS-fixed container cleanly.
+// ═══════════════════════════════════════
+function drawGraph(elementId, cover, highlightEdge) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    if (!currentGraph.vertices || currentGraph.vertices.length === 0) {
+        el.innerHTML = '<span style="color:var(--text-muted);font-size:11px;">Load a graph to begin</span>';
+        return;
+    }
+
+    const w = GRAPH_W;
+    const h = GRAPH_H;
+    const n = currentGraph.vertices.length;
+    const r = Math.min(w, h) / 2.8 - 30;
+    const cx = w / 2, cy = h / 2;
+
+    const pos = {};
+    currentGraph.vertices.forEach((v, i) => {
+        const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+        pos[v] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    });
+
+    // SVG uses fixed viewBox; preserveAspectRatio centres it in the container
+    let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block;">`;
+
+    currentGraph.edges.forEach(([u, v]) => {
+        const p1 = pos[u], p2 = pos[v];
+        const covered = cover.includes(u) || cover.includes(v);
+        const isHighlighted = highlightEdge && highlightEdge[0] === u && highlightEdge[1] === v;
+        let color = covered ? '#00ff88' : '#1e2849';
+        let width = 2;
+        if (isHighlighted) { color = '#ffaa00'; width = 3; }
+        svg += `<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" stroke="${color}" stroke-width="${width}"/>`;
+    });
+
+    currentGraph.vertices.forEach(v => {
+        const p = pos[v];
+        const inCover = cover.includes(v);
+        const fill = inCover ? '#00d4ff' : '#0f1429';
+        const stroke = inCover ? '#00d4ff' : '#0099ff';
+        svg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="18" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+        svg += `<text x="${p.x.toFixed(1)}" y="${(p.y + 5).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="700" fill="${inCover ? '#0a0d1a' : '#e8eef7'}" font-family="IBM Plex Mono, monospace">${v}</text>`;
+    });
+
+    svg += '</svg>';
+    el.innerHTML = svg;
+}
+
+// ═══════════════════════════════════════
+// BRUTE FORCE
+// ═══════════════════════════════════════
+function initBruteForce() {
+    const steps = [];
+    const { vertices, edges, targetK: k } = currentGraph;
+    const n = vertices.length;
+    const m = edges.length;
+
+    if (k === 0) {
+        const ok = m === 0;
+        steps.push({
+            cover: [], codeLine: 'bfLine2', ops: 0,
+            detail: `Edge case: k=0. Graph has ${m} edges.\n${ok ? '✓ Empty set covers all 0 edges. Answer: YES.' : '✗ Cannot cover ' + m + ' edges with 0 vertices. Answer: NO.'}`,
+            isFinal: true, isYes: ok
+        });
+        return steps;
+    }
+    if (k >= n) {
+        steps.push({
+            cover: [...vertices], codeLine: 'bfLine3', ops: 0,
+            detail: `Edge case: k=${k} ≥ n=${n}. Full vertex set V covers all edges trivially.\n✓ Answer: YES instantly — no iteration needed.`,
+            isFinal: true, isYes: true
+        });
+        return steps;
+    }
+    if (m === 0) {
+        steps.push({
+            cover: [], codeLine: 'bfLine4', ops: 0,
+            detail: `Edge case: graph has no edges. Any subset (including ∅) is a valid cover.\n✓ Answer: YES instantly.`,
+            isFinal: true, isYes: true
+        });
+        return steps;
+    }
+
+    steps.push({
+        cover: [], codeLine: 'bfLine6', ops: 0,
+        detail: `Starting brute-force.\nIterating subsets by size: 0 → ${k}.\nTotal subsets to check: ${Array.from({length: k+1}, (_,s) => nCr(n,s)).reduce((a,b)=>a+b,0).toLocaleString()}\nThis guarantees the minimum cover is found first.`,
+        isFinal: false
+    });
+
+    let ops = 0;
+    let found = false;
+
+    for (let size = 0; size <= k && !found; size++) {
+        for (let mask = 0; mask < (1 << n) && !found; mask++) {
+            if (popcount(mask) !== size) continue;
+            ops++;
+            const subset = vertices.filter((_, i) => (mask >> i) & 1);
+            let coveredCount = 0;
+            edges.forEach(([u, v]) => { if (subset.includes(u) || subset.includes(v)) coveredCount++; });
+            const valid = coveredCount === m;
+
+            steps.push({
+                cover: subset,
+                codeLine: valid ? 'bfLine9' : 'bfLine8',
+                ops,
+                detail: `Testing size-${size} subset {${subset.length ? subset.join(',') : '∅'}}\nEdges covered: ${coveredCount} / ${m}\n${valid ? '✓ VALID COVER FOUND — size ' + size + ' is minimum (all smaller sizes exhausted)' : '✗ Not a valid cover'}`,
+                isFinal: false
+            });
+
+            if (valid) {
+                steps.push({
+                    cover: subset, codeLine: 'bfLine9', ops,
+                    detail: `✓ MINIMUM COVER FOUND\nCover: {${subset.join(',')}}\nOptimal size: ${subset.length} (≤ k = ${k})\nAll subsets of size < ${size} were checked and failed — this IS the minimum.`,
+                    isFinal: true, isYes: true
+                });
+                found = true;
+            }
+        }
+    }
+
+    if (!found) {
+        steps.push({
+            cover: [], codeLine: 'bfLine10', ops,
+            detail: `✗ No valid cover of size ≤ ${k} exists.\nAll ${ops.toLocaleString()} subsets of size 0 to ${k} checked.\nAnswer: NO`,
+            isFinal: true, isYes: false
+        });
+    }
+
+    return steps;
+}
+
+function popcount(x) {
+    let c = 0;
+    while (x) { c += x & 1; x >>= 1; }
+    return c;
+}
+
+// ═══════════════════════════════════════
+// GREEDY
+// ═══════════════════════════════════════
+function initGreedy() {
+    const steps = [];
+    const { edges } = currentGraph;
+    let cover = [];
+    let remaining = [...edges];
+    let ops = 0;
+
+    steps.push({
+        cover: [], codeLine: 'grLine1', ops: 0,
+        detail: `Starting greedy 2-approximation.\nC ← ∅,  E′ ← all ${edges.length} edges.\nWill pick edges until no uncovered edge remains.`,
+        isFinal: false
+    });
+
+    while (remaining.length > 0) {
+        ops++;
+        const [u, v] = remaining[0];
+        cover = Array.from(new Set([...cover, u, v]));
+
+        const prevRemaining = remaining.length;
+        remaining = remaining.filter(([a, b]) => !cover.includes(a) && !cover.includes(b));
+        const removed = prevRemaining - remaining.length;
+
+        steps.push({
+            cover: [...cover], codeLine: remaining.length > 0 ? 'grLine4' : 'grLine5',
+            highlightEdge: [u, v], ops,
+            detail: `Iteration ${ops}:\nPicked edge (${u}, ${v})\nAdded both endpoints to C → C = {${cover.join(',')}}\nRemoved ${removed} edge(s) now covered by ${u} or ${v}\nEdges still uncovered: ${remaining.length}`,
+            isFinal: false
+        });
+    }
+
+    steps.push({
+        cover, codeLine: 'grLine6', ops,
+        detail: `✓ GREEDY COMPLETE\nFinal cover: {${cover.join(',')}}\nSize: ${cover.length}\nGuaranteed: |C| ≤ 2 × |C*| (2-approximation)`,
+        isFinal: true
+    });
+
+    return steps;
+}
+
+// ═══════════════════════════════════════
+// STEP EXECUTION
+// ═══════════════════════════════════════
+function executeBruteStep() {
+    if (states.brute.step >= states.brute.steps.length) return;
+    const s = states.brute.steps[states.brute.step];
+    const elapsed = Date.now() - states.brute.startTime;
+
+    document.getElementById('compBruteStep').textContent = states.brute.step + 1;
+    document.getElementById('compBruteOps').textContent = s.ops.toLocaleString();
+    document.getElementById('compBruteCoverSize').textContent = s.cover.length;
+    document.getElementById('compBruteTimeVal').textContent = elapsed;
+    document.getElementById('compBruteDetail').innerHTML = s.detail.replace(/\n/g, '<br>');
+    highlightBrute(s.codeLine);
+    drawGraph('graphVizBrute', s.cover);
+
+    if (s.isFinal) {
+        document.getElementById('compBruteStatus').textContent = s.isYes ? '✓ Complete — YES' : '✗ Complete — NO';
+        states.brute.running = false;
+        if (states.brute.timer) { clearTimeout(states.brute.timer); states.brute.timer = null; }
+    }
+    states.brute.step++;
+    updateAnalysis();
+}
+
+function executeGreedyStep() {
+    if (states.greedy.step >= states.greedy.steps.length) return;
+    const s = states.greedy.steps[states.greedy.step];
+    const elapsed = Date.now() - states.greedy.startTime;
+
+    document.getElementById('compGreedyStep').textContent = states.greedy.step + 1;
+    document.getElementById('compGreedyOps').textContent = s.ops;
+    document.getElementById('compGreedyCoverSize').textContent = s.cover.length;
+    document.getElementById('compGreedyTimeVal').textContent = elapsed;
+    document.getElementById('compGreedyDetail').innerHTML = s.detail.replace(/\n/g, '<br>');
+    highlightGreedy(s.codeLine);
+    drawGraph('graphVizGreedy', s.cover, s.highlightEdge);
+
+    if (s.isFinal) {
+        document.getElementById('compGreedyStatus').textContent = '✓ Complete';
+        states.greedy.running = false;
+        if (states.greedy.timer) { clearTimeout(states.greedy.timer); states.greedy.timer = null; }
+    }
+    states.greedy.step++;
+    updateAnalysis();
+}
+
+function highlightBrute(lineId) {
+    ['bfLine0','bfLine1','bfLine2','bfLine3','bfLine4','bfLine5','bfLine6','bfLine7','bfLine8','bfLine9','bfLine10']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('highlighted'); });
+    if (lineId) { const el = document.getElementById(lineId); if (el) el.classList.add('highlighted'); }
+}
+
+function highlightGreedy(lineId) {
+    ['grLine0','grLine1','grLine2','grLine3','grLine4','grLine5','grLine6']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('highlighted'); });
+    if (lineId) { const el = document.getElementById(lineId); if (el) el.classList.add('highlighted'); }
+}
+
+function getDelay() {
+    return 150 / parseFloat(document.getElementById('speedSlider').value);
+}
+
+function scheduleBrute() {
+    if (!states.brute.running || states.brute.step >= states.brute.steps.length) return;
+    executeBruteStep();
+    if (states.brute.running) states.brute.timer = setTimeout(scheduleBrute, getDelay());
+}
+
+function scheduleGreedy() {
+    if (!states.greedy.running || states.greedy.step >= states.greedy.steps.length) return;
+    executeGreedyStep();
+    if (states.greedy.running) states.greedy.timer = setTimeout(scheduleGreedy, getDelay());
+}
+
+// ═══════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════
+function runBothAlgorithms() {
+    if (currentGraph.vertices.length === 0) { alert('Load a graph first.'); return; }
+    if (!states.brute.steps.length) {
+        states.brute.steps = initBruteForce();
+        states.brute.startTime = Date.now();
+    }
+    if (!states.greedy.steps.length) {
+        states.greedy.steps = initGreedy();
+        states.greedy.startTime = Date.now();
+    }
+    states.brute.running = true;
+    states.greedy.running = true;
+    scheduleBrute();
+    scheduleGreedy();
+}
+
+function pauseBothAlgorithms() {
+    states.brute.running = false;
+    states.greedy.running = false;
+    if (states.brute.timer)  { clearTimeout(states.brute.timer);  states.brute.timer = null; }
+    if (states.greedy.timer) { clearTimeout(states.greedy.timer); states.greedy.timer = null; }
+}
+
+function stepBothAlgorithms() {
+    if (currentGraph.vertices.length === 0) { alert('Load a graph first.'); return; }
+    if (!states.brute.steps.length) {
+        states.brute.steps = initBruteForce();
+        states.brute.startTime = Date.now();
+    }
+    if (!states.greedy.steps.length) {
+        states.greedy.steps = initGreedy();
+        states.greedy.startTime = Date.now();
+    }
+    executeBruteStep();
+    executeGreedyStep();
+}
+
+function resetBoth() {
+    pauseBothAlgorithms();
+    states.brute  = { running: false, step: 0, cover: [], steps: [], startTime: 0, timer: null };
+    states.greedy = { running: false, step: 0, cover: [], steps: [], startTime: 0, timer: null };
+
+    ['compBruteStep','compBruteOps','compBruteTimeVal'].forEach(id => document.getElementById(id).textContent = '0');
+    ['compGreedyStep','compGreedyOps','compGreedyTimeVal'].forEach(id => document.getElementById(id).textContent = '0');
+    document.getElementById('compBruteCoverSize').textContent = '—';
+    document.getElementById('compGreedyCoverSize').textContent = '—';
+    document.getElementById('compBruteStatus').textContent = 'Ready';
+    document.getElementById('compGreedyStatus').textContent = 'Ready';
+    document.getElementById('compBruteDetail').textContent = 'Load a graph and press RUN or STEP to begin.';
+    document.getElementById('compGreedyDetail').textContent = 'Load a graph and press RUN or STEP to begin.';
+    document.getElementById('analysisSection').style.display = 'none';
+    highlightBrute(null); highlightGreedy(null);
+
+    drawGraph('graphVizBrute', []);
+    drawGraph('graphVizGreedy', []);
+}
+
+function updateSpeed() {
+    const v = parseFloat(document.getElementById('speedSlider').value);
+    document.getElementById('speedValue').textContent = v.toFixed(2) + '×';
+}
+
+// ═══════════════════════════════════════
+// ANALYSIS
+// ═══════════════════════════════════════
+function updateAnalysis() {
+    const bStatus = document.getElementById('compBruteStatus').textContent;
+    const gStatus = document.getElementById('compGreedyStatus').textContent;
+    if (!bStatus.includes('Complete') || !gStatus.includes('Complete')) return;
+
+    const bruteSize = parseInt(document.getElementById('compBruteCoverSize').textContent);
+    const greedySize = parseInt(document.getElementById('compGreedyCoverSize').textContent);
+    const bruteTime = parseFloat(document.getElementById('compBruteTimeVal').textContent);
+    const greedyTime = parseFloat(document.getElementById('compGreedyTimeVal').textContent);
+
+    if (isNaN(bruteSize) || isNaN(greedySize)) return;
+
+    const ratio = bruteSize > 0 ? (greedySize / bruteSize).toFixed(2) : '—';
+    const speedup = greedyTime > 0 ? (bruteTime / greedyTime).toFixed(1) + '×' : (bruteTime > 0 ? '≫ fast' : '—');
+    const diff = greedySize - bruteSize;
+
+    document.getElementById('compRatio').textContent = ratio + '×';
+    document.getElementById('compSpeedup').textContent = speedup;
+    document.getElementById('compInsight').textContent = diff === 0 ? '0 (matched optimal)' : '+' + diff;
+
+    const r = parseFloat(ratio);
+    let comment = '';
+    if (r === 1.0) comment = 'Ratio = 1.0 — the greedy algorithm happened to find the optimal cover on this graph.';
+    else if (r <= 1.5) comment = `Ratio = ${ratio} — typical-case performance. The greedy cover is ${diff} vertex(es) larger than optimal.`;
+    else if (r <= 2.0) comment = `Ratio = ${ratio} — approaching the worst case. Expected on dense or matching-like graphs.`;
+    if (r === 2.0) comment = 'Ratio = 2.0 — theoretical worst case, achieved by a perfect matching graph. Proves the bound is tight.';
+    document.getElementById('ratioComment').textContent = comment;
+
+    document.getElementById('analysisSection').style.display = 'block';
+}
+
+// ═══════════════════════════════════════
+// GROWTH CHART
+// ═══════════════════════════════════════
+function initLineChart(type) {
+    currentChartType = type;
+    document.getElementById('nSlider').value = 10;
+    updateLineChart();
+}
+
+function updateLineChart() {
+    const n = parseInt(document.getElementById('nSlider').value);
+    document.getElementById('nDisplay').textContent = n;
+
+    const width = 900, height = 350;
+    const margin = { top: 20, right: 40, bottom: 50, left: 90 };
+    const pw = width - margin.left - margin.right;
+    const ph = height - margin.top - margin.bottom;
+
+    document.getElementById('gridLines').innerHTML = '';
+    document.getElementById('axes').innerHTML = '';
+    document.getElementById('lines').innerHTML = '';
+    document.getElementById('tooltip').innerHTML = '';
+
+    const mult = currentChartType === 'complete' ? 1 : currentChartType === 'sparse' ? 0.5 : 0.8;
+    const points = [];
+    for (let i = 3; i <= 25; i++) {
+        const approxM = currentChartType === 'complete' ? i*(i-1)/2 : currentChartType === 'sparse' ? i : i*1.5;
+        const bruteModel = mult * Math.pow(2, i) * approxM / 5000;
+        const greedyModel = mult * approxM * approxM / 500;
+        points.push({ n: i, brute: Math.min(10000, bruteModel), greedy: greedyModel });
+    }
+
+    const maxY = Math.max(...points.map(p => p.brute));
+    const svg = document.getElementById('lineChart');
+    const ns = (v) => document.createElementNS('http://www.w3.org/2000/svg', v);
+
+    const gridG = document.getElementById('gridLines');
+    for (let i = 0; i <= 8; i++) {
+        const y = margin.top + (ph / 8) * i;
+        const l = ns('line');
+        l.setAttribute('x1', margin.left); l.setAttribute('y1', y);
+        l.setAttribute('x2', width - margin.right); l.setAttribute('y2', y);
+        l.setAttribute('stroke', '#1e2849'); l.setAttribute('stroke-width', '1'); l.setAttribute('opacity', '0.6');
+        gridG.appendChild(l);
+    }
+
+    const axG = document.getElementById('axes');
+    const addLine = (x1,y1,x2,y2) => {
+        const l = ns('line');
+        l.setAttribute('x1',x1); l.setAttribute('y1',y1);
+        l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+        l.setAttribute('stroke','#1e2849'); l.setAttribute('stroke-width','2');
+        axG.appendChild(l);
+    };
+    addLine(margin.left, margin.top, margin.left, height-margin.bottom);
+    addLine(margin.left, height-margin.bottom, width-margin.right, height-margin.bottom);
+
+    for (let i = 3; i <= 25; i += 4) {
+        const x = margin.left + ((i-3)/22)*pw;
+        const t = ns('text');
+        t.setAttribute('x',x); t.setAttribute('y',height-margin.bottom+20);
+        t.setAttribute('text-anchor','middle'); t.setAttribute('fill','#a8b5d1'); t.setAttribute('font-size','11');
+        t.textContent = `n=${i}`; axG.appendChild(t);
+    }
+    const yl = ns('text');
+    yl.setAttribute('x',15); yl.setAttribute('y',margin.top+ph/2);
+    yl.setAttribute('text-anchor','middle'); yl.setAttribute('fill','#a8b5d1'); yl.setAttribute('font-size','11');
+    yl.setAttribute('transform',`rotate(-90,15,${margin.top+ph/2})`);
+    yl.textContent='Model value (arb. units)'; axG.appendChild(yl);
+
+    const lG = document.getElementById('lines');
+    const xOf = (i) => margin.left + ((i-3)/22)*pw;
+    const yOf = (v) => height - margin.bottom - (Math.min(v,maxY)/maxY)*ph;
+
+    const makePath = (pts, key, grad) => {
+        let d = `M ${xOf(pts[0].n)} ${yOf(pts[0][key])}`;
+        pts.slice(1).forEach(p => { d += ` L ${xOf(p.n)} ${yOf(p[key])}`; });
+        const path = ns('path');
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', `url(#${grad})`);
+        path.setAttribute('stroke-width','3');
+        path.setAttribute('fill','none');
+        path.setAttribute('stroke-linecap','round');
+        lG.appendChild(path);
+    };
+    makePath(points, 'brute', 'bruteGradient');
+    makePath(points, 'greedy', 'greedyGradient');
+
+    const cx = xOf(n);
+    const bY = yOf(points[n-3].brute), gY = yOf(points[n-3].greedy);
+    const ml = ns('line');
+    ml.setAttribute('x1',cx); ml.setAttribute('y1',margin.top);
+    ml.setAttribute('x2',cx); ml.setAttribute('y2',height-margin.bottom);
+    ml.setAttribute('stroke','#00d4ff'); ml.setAttribute('stroke-width','1.5');
+    ml.setAttribute('stroke-dasharray','5,5'); ml.setAttribute('opacity','0.6');
+    lG.appendChild(ml);
+
+    const addDot = (x,y,fill,stroke) => {
+        const c = ns('circle');
+        c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r','6');
+        c.setAttribute('fill',fill); c.setAttribute('stroke',stroke); c.setAttribute('stroke-width','2');
+        lG.appendChild(c);
+    };
+    addDot(cx, bY, '#00d4ff', '#0099ff');
+    addDot(cx, gY, '#00ff88', '#00cc66');
+
+    const bv = points[n-3].brute, gv = points[n-3].greedy;
+    document.getElementById('legendN').textContent = n;
+    document.getElementById('legendBrute').textContent = bv >= 1000 ? (bv/1000).toFixed(1)+'k' : bv.toFixed(1);
+    document.getElementById('legendGreedy').textContent = gv.toFixed(2);
+    document.getElementById('legendRatio').textContent = gv > 0 ? (bv/gv).toFixed(0)+'×' : '—';
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    loadPreset('triangle');
+    initLineChart('complete');
+});
+</script>
+</body>
+</html>
